@@ -12,15 +12,20 @@ const PORT = process.env.PORT || 5002;
 app.use(bodyParser.json());
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000', // Adjust for production
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     methods: ['POST'],
   })
 );
 
+// Root Route
+app.get('/', (req, res) => {
+  res.send('Backend is running!');
+});
+
 // Rate Limiter
 const emailLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Limit each IP to 10 requests per windowMs
+  max: 10,
   message: 'Too many requests, please try again later.',
 });
 app.use('/send-email', emailLimiter);
