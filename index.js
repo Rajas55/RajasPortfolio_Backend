@@ -12,8 +12,10 @@ const PORT = process.env.PORT || 5002;
 app.use(bodyParser.json());
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    methods: ['POST'],
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000', // Allow requests from the frontend
+    methods: ['GET', 'POST', 'OPTIONS'], // Allow necessary HTTP methods
+    allowedHeaders: ['Content-Type'], // Allow specific headers
+    optionsSuccessStatus: 200, // Handle preflight requests (OPTIONS)
   })
 );
 
@@ -25,7 +27,7 @@ app.get('/', (req, res) => {
 // Rate Limiter
 const emailLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+  max: 10, // Limit each IP to 10 requests per window
   message: 'Too many requests, please try again later.',
 });
 app.use('/send-email', emailLimiter);
@@ -34,11 +36,13 @@ app.use('/send-email', emailLimiter);
 app.post('/send-email', async (req, res) => {
   const { name, email, message } = req.body;
 
+  // Validate request body
   if (!name || !email || !message) {
     return res.status(400).json({ error: 'All fields are required.' });
   }
 
   try {
+    // Configure Nodemailer
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 587,
@@ -49,6 +53,7 @@ app.post('/send-email', async (req, res) => {
       },
     });
 
+    // Mail options
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: process.env.EMAIL_USER,
@@ -60,12 +65,24 @@ app.post('/send-email', async (req, res) => {
              <p><strong>Message:</strong><br>${message}</p>`,
     };
 
+    // Send email
     await transporter.sendMail(mailOptions);
     res.status(200).json({ message: 'Email sent successfully!' });
   } catch (error) {
-    console.error(error.response || error.message || error);
-    res.status(500).json({ error: 'Failed to send email.' });
+    console.error('Error sending email:', error);
+    res.status(500).json({ error: 'Failed to send email. Please try again later.' });
   }
+});
+
+// Catch-all route for undefined endpoints
+app.use((req, res, next) => {
+  res.status(404).json({ error: 'Endpoint not found' });
+});
+
+// Error handler middleware
+app.use((err, req, res, next) => {
+  console.error('Unexpected error:', err);
+  res.status(500).json({ error: 'An unexpected error occurred. Please try again later.' });
 });
 
 // Start the Server
